@@ -14,14 +14,14 @@ package com.snowplowanalytics.snowplow.enrich.common
 package adapters
 package registry
 
+import io.circe._
+import io.circe.literal._
 import org.joda.time.DateTime
 import org.specs2.{Specification, ScalaCheck}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
-import org.json4s.JsonDSL._
 
 import loaders._
 import SpecHelpers._
@@ -64,7 +64,7 @@ class MailchimpAdapterSpec extends Specification with DataTables with Validation
   def e2 = {
     val keys = NonEmptyList("data", "merges", "LNAME")
     val value = "Beemster"
-    val expected = JField("data", JObject(List(("merges", JObject(List(("LNAME", JString("Beemster"))))))))
+    val expected = ("data", json"""{"data": { "merges": { "LNAME": "Beemster" }}}""")
 
     MailchimpAdapter.toNestedJField(keys, value) mustEqual expected
   }
@@ -75,21 +75,25 @@ class MailchimpAdapterSpec extends Specification with DataTables with Validation
       "data[merges][FNAME]" -> "Joshua"
     )
     val expected = List(
-      JField("data", JObject(List(("merges", JObject(List(("LNAME", JString("Beemster")))))))),
-      JField("data", JObject(List(("merges", JObject(List(("FNAME", JString("Joshua"))))))))
+      json"""{ "data": { "merges": { "LNAME": "Beemster" }}}""",
+      json"""{ "data": { "merges": { "FNAME": "Joshua" }}}"""
     )
-
     MailchimpAdapter.toJFields(map) mustEqual expected
   }
 
   def e4 = {
-    val a = JField("l1", JField("l2", JField("l3", JField("str", "hi"))))
-    val b = JField("l1", JField("l2", JField("l3", JField("num", 42))))
-    val expected = JObject(List(("l1", JObject(List(("l2", JObject(List(("l3", JObject(List(
-      ("str", JString("hi")),
-      ("num", JInt(42))
-    )))))))))))
-
+    val a = ("l1", Json.obj(("l2", Json.obj(("l3", Json.obj(("str", Json.fromString("hi"))))))))
+    val b = ("l1", Json.obj(("l2", Json.obj(("l3", Json.obj(("num", Json.fromInt(42))))))))
+    val expected = json"""{
+      "l1": {
+        "l2": {
+          "l3": {
+            "str": "hi",
+            "num": 42
+          }
+        }
+      }
+    }"""
     MailchimpAdapter.mergeJFields(List(a, b)) mustEqual expected
   }
 

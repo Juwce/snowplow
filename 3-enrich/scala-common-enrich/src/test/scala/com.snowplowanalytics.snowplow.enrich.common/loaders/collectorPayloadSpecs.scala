@@ -22,7 +22,6 @@ class CollectorApiSpec extends Specification with DataTables with ValidationMatc
   // (then we can make isIceRequest private again).
   "isIceRequest" should {
     "correctly identify valid Snowplow GET requests" in {
-
       "SPEC NAME"    || "PATH"           | "EXP. RESULT" |
         "Valid #1"   !! "/i"             ! true |
         "Valid #2"   !! "/ice.png"       ! true |

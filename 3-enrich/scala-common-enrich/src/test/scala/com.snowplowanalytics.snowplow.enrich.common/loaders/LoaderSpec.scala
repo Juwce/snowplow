@@ -24,7 +24,6 @@ import Scalaz._
 import SpecHelpers._
 
 object LoaderSpec {
-
   val loader = new Loader[String] {
     // Make our trait whole
     def toCollectorPayload(line: String): ValidatedMaybeCollectorPayload = "FAIL".failNel
@@ -32,11 +31,9 @@ object LoaderSpec {
 }
 
 class LoaderSpec extends Specification with DataTables with ValidationMatchers {
-
   import LoaderSpec._
 
   "getLoader" should {
-
     "return the CloudfrontLoader" in {
       Loader.getLoader("cloudfront") must beSuccessful(CloudfrontLoader)
     }

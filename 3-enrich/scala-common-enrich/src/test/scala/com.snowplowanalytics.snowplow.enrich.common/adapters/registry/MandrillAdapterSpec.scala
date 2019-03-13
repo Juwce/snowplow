@@ -14,13 +14,13 @@ package com.snowplowanalytics.snowplow.enrich.common
 package adapters
 package registry
 
+import io.circe.literal._
 import org.joda.time.DateTime
 import org.specs2.{ScalaCheck, Specification}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
 
 import loaders.{CollectorApi, CollectorContext, CollectorPayload, CollectorSource}
 
@@ -54,7 +54,7 @@ class MandrillAdapterSpec extends Specification with DataTables with ValidationM
 
   def e1 = {
     val bodyStr  = "mandrill_events=%5B%7B%22event%22%3A%20%22subscribe%22%7D%5D"
-    val expected = List(JObject(List(("event", JString("subscribe")))))
+    val expected = List(json"""{"event": "subscribe"}""")
     MandrillAdapter.payloadBodyToEvents(bodyStr) must beSuccessful(expected)
   }
 

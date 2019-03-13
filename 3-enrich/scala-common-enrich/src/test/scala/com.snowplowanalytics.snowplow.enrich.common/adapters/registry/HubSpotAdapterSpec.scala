@@ -14,13 +14,13 @@ package com.snowplowanalytics.snowplow.enrich.common
 package adapters
 package registry
 
+import io.circe.literal._
 import org.joda.time.DateTime
 import org.specs2.{ScalaCheck, Specification}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
 
 import loaders.{CollectorApi, CollectorContext, CollectorPayload, CollectorSource}
 
@@ -53,7 +53,10 @@ class HubSpotAdapterSpec extends Specification with DataTables with ValidationMa
 
   def e1 = {
     val bodyStr  = """[{"subscriptionType":"company.change","eventId":16}]"""
-    val expected = List(JObject(List(("subscriptionType", JString("company.change")), ("eventId", JInt(16)))))
+    val expected = json"""{
+      "subscriptionType": "company.change",
+      "eventId": 16
+    }"""
     HubSpotAdapter.payloadBodyToEvents(bodyStr) must beSuccessful(expected)
   }
 

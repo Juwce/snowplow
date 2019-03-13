@@ -14,14 +14,16 @@ package com.snowplowanalytics.snowplow.enrich.common.enrichments.registry
 
 import java.net.URI
 
+import io.circe.literal._
 import org.joda.time.DateTime
-import org.json4s.jackson.JsonMethods.parse
 import org.specs2.{ScalaCheck, Specification}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 
-class IabEnrichmentSpec extends Specification with DataTables with ValidationMatchers with ScalaCheck {
+class IabEnrichmentSpec
+  extends Specification with DataTables with ValidationMatchers with ScalaCheck {
+
   def is =
     s2"""
   This is a specification to test the IabEnrichment
@@ -64,17 +66,17 @@ class IabEnrichmentSpec extends Specification with DataTables with ValidationMat
     validConfig.getIabContext(None, None, None) must beFailing
 
   def e4 = {
-    val responseJson = parse("""
-                             |{
-                             |    "schema": "iglu:com.iab.snowplow/spiders_and_robots/jsonschema/1-0-0",
-                             |    "data": {
-                             |        "spiderOrRobot": false,
-                             |        "category": "BROWSER",
-                             |        "reason": "PASSED_ALL",
-                             |        "primaryImpact": "NONE"
-                             |    }
-                             |}
-                           """.stripMargin)
+    val responseJson = json"""
+      {
+          "schema": "iglu:com.iab.snowplow/spiders_and_robots/jsonschema/1-0-0",
+          "data": {
+              "spiderOrRobot": false,
+              "category": "BROWSER",
+              "reason": "PASSED_ALL",
+              "primaryImpact": "NONE"
+          }
+      }
+    """
     validConfig.getIabContext(Some("Xdroid"), Some("192.168.0.1"), Some(DateTime.now())) must beSuccessful(responseJson)
   }
 

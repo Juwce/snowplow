@@ -15,15 +15,14 @@ package adapters
 package registry
 
 import com.snowplowanalytics.iglu.client.Resolver
+import io.circe._
+import io.circe.literal._
 import org.joda.time.DateTime
 import org.specs2.{ScalaCheck, Specification}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
 
 import SpecHelpers._
 import loaders.{CollectorApi, CollectorContext, CollectorPayload, CollectorSource}
@@ -73,7 +72,8 @@ class AdapterSpec extends Specification with DataTables with ValidationMatchers 
   }
 
   def e2 = {
-    val params = BaseAdapter.toUnstructEventParams("tv", Map[String, String](), "iglu:foo", _ => List[JField](), "app")
+    val params = BaseAdapter.toUnstructEventParams(
+      "tv", Map[String, String](), "iglu:foo", _ => Json.fromValues(Nil), "app")
     params must_== Map(
       "tv"    -> "tv",
       "e"     -> "ue",
@@ -90,7 +90,8 @@ class AdapterSpec extends Specification with DataTables with ValidationMatchers 
                      "eid" -> "321",
                      "ttm" -> "2015-11-13T16:31:52.393Z",
                      "url" -> "http://localhost")
-    val params = BaseAdapter.toUnstructEventParams("tv", shared, "iglu:foo", _ => List[JField](), "app")
+    val params = BaseAdapter.toUnstructEventParams(
+      "tv", shared, "iglu:foo", _ => Json.fromValues(Nil), "app")
     params must_== shared ++ Map(
       "tv"    -> "tv",
       "e"     -> "ue",
@@ -162,31 +163,29 @@ class AdapterSpec extends Specification with DataTables with ValidationMatchers 
   }
 
   def e9 =
-    "SPEC NAME"                || "JSON" | "EXPECTED OUTPUT" |
-      "Change one value"       !! """{"ts":1415709559}""" ! JObject(List(("ts", JString("2014-11-11T12:39:19.000Z")))) |
-      "Change multiple values" !! """{"ts":1415709559,"ts":1415700000}""" ! JObject(
-        List(("ts", JString("2014-11-11T12:39:19.000Z")), ("ts", JString("2014-11-11T10:00:00.000Z")))) |
-      "Change nested values" !! """{"ts":1415709559,"nested":{"ts":1415700000}}""" ! JObject(
-        List(("ts", JString("2014-11-11T12:39:19.000Z")),
-             ("nested", JObject(List(("ts", JString("2014-11-11T10:00:00.000Z"))))))) |
-      "Change nested string values" !! """{"ts":1415709559,"nested":{"ts":"1415700000"}}""" ! JObject(
-        List(("ts", JString("2014-11-11T12:39:19.000Z")),
-             ("nested", JObject(List(("ts", JString("2014-11-11T10:00:00.000Z"))))))) |
-      "JStrings should also be changed" !! """{"ts":"1415709559"}""" ! JObject(
-        List(("ts", JString("2014-11-11T12:39:19.000Z")))) |> { (_, json, expected) =>
-      BaseAdapter.cleanupJsonEventValues(parse(json), None, "ts") mustEqual expected
+    "SPEC NAME" || "JSON" | "EXPECTED OUTPUT" |
+      "Change one value" !! json"""{"ts":1415709559}""" ! json"""{ "ts": "2014-11-11T12:39:19.000Z" }""" |
+      "Change multiple values" !! json"""{"ts":1415709559,"ts":1415700000}""" !
+        json"""{ "ts": "2014-11-11T12:39:19.000Z", "ts": "2014-11-11T10:00:00.000Z"}""" |
+      "Change nested values" !! json"""{"ts":1415709559,"nested":{"ts":1415700000}}""" !
+        json"""{ "ts": "2014-11-11T12:39:19.000Z", "nested": {"ts": "2014-11-11T10:00:00.000Z" }}""" |
+      "Change nested string values" !! json"""{"ts":1415709559,"nested":{"ts":"1415700000"}}""" !
+        json"""{ "ts": "2014-11-11T12:39:19.000Z", "nested": { "ts": "2014-11-11T10:00:00.000Z" }}""" |
+      "JStrings should also be changed" !! json"""{"ts":"1415709559"}""" !
+        json"""{ "ts" : "2014-11-11T12:39:19.000Z" }""" |> { (_, json, expected) =>
+      BaseAdapter.cleanupJsonEventValues(json, None, "ts") mustEqual expected
     }
 
   def e10 =
     "SPEC NAME"                    || "JSON" | "EXPECTED OUTPUT" |
-      "Remove 'event'->'type'"     !! """{"an_event":"type"}""" ! JObject(List()) |
-      "Not remove existing values" !! """{"abc":1415709559, "an_event":"type", "cba":"type"}""" ! JObject(
-        List(("abc", JInt(1415709559)), ("cba", JString("type")))) |
-      "Works with ts value subs" !! """{"ts":1415709559, "an_event":"type", "abc":"type"}""" ! JObject(
-        List(("ts", JString("2014-11-11T12:39:19.000Z")), ("abc", JString("type")))) |
-      "Removes nested values" !! """{"abc":"abc","nested":{"an_event":"type"}}""" ! JObject(
-        List(("abc", JString("abc")), ("nested", JObject(List())))) |> { (_, json, expected) =>
-      BaseAdapter.cleanupJsonEventValues(parse(json), ("an_event", "type").some, "ts") mustEqual expected
+      "Remove 'event'->'type'"     !! json"""{"an_event":"type"}""" ! json"""{}""" |
+      "Not remove existing values" !! json"""{"abc":1415709559, "an_event":"type", "cba":"type"}""" !
+        json"""{ "abc": 1415709559, "cba": "type" }""" |
+      "Works with ts value subs" !! json"""{"ts":1415709559, "an_event":"type", "abc":"type"}""" !
+        json"""{ "ts": "2014-11-11T12:39:19.000Z", "abc": "type" }""" |
+      "Removes nested values" !! json"""{"abc":"abc","nested":{"an_event":"type"}}""" !
+        json"""{ "abc": "abc", "nested": {}}""" |> { (_, json, expected) =>
+      BaseAdapter.cleanupJsonEventValues(json, ("an_event", "type").some, "ts") mustEqual expected
     }
 
 }

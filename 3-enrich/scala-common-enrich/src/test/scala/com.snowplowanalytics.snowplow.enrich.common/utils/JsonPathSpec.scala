@@ -12,8 +12,8 @@
  */
 package com.snowplowanalytics.snowplow.enrich.common.utils
 
-import org.json4s._
-import org.json4s.jackson.parseJson
+import io.circe._
+import io.circe.literal._
 import org.specs2.Specification
 import org.specs2.scalaz.ValidationMatchers
 
@@ -29,49 +29,50 @@ class JsonPathSpec extends Specification with ValidationMatchers {
   JNothing must fail                      $e7
   """
 
-  val someJson = parseJson("""
-      |{ "store": {
-      |    "book": [
-      |      { "category": "reference",
-      |        "author": "Nigel Rees",
-      |        "title": "Sayings of the Century",
-      |        "price": 8.95
-      |      },
-      |      { "category": "fiction",
-      |        "author": "Evelyn Waugh",
-      |        "title": "Sword of Honour",
-      |        "price": 12.99
-      |      },
-      |      { "category": "fiction",
-      |        "author": "Herman Melville",
-      |        "title": "Moby Dick",
-      |        "isbn": "0-553-21311-3",
-      |        "price": 8.99
-      |      },
-      |      { "category": "fiction",
-      |        "author": "J. R. R. Tolkien",
-      |        "title": "The Lord of the Rings",
-      |        "isbn": "0-395-19395-8",
-      |        "price": 22.99
-      |      }
-      |    ],
-      |    "bicycle": {
-      |      "color": "red",
-      |      "price": 19.95
-      |    },
-      |    "unicorns": []
-      |  }
-      |}
-    """.stripMargin)
+  val someJson = json"""
+    {
+      "store": {
+        "book": [
+          { "category": "reference",
+            "author": "Nigel Rees",
+            "title": "Sayings of the Century",
+            "price": 8.95
+          },
+          { "category": "fiction",
+            "author": "Evelyn Waugh",
+            "title": "Sword of Honour",
+            "price": 12.99
+          },
+          { "category": "fiction",
+            "author": "Herman Melville",
+            "title": "Moby Dick",
+            "isbn": "0-553-21311-3",
+            "price": 8.99
+          },
+          { "category": "fiction",
+            "author": "J. R. R. Tolkien",
+            "title": "The Lord of the Rings",
+            "isbn": "0-395-19395-8",
+            "price": 22.99
+          }
+        ],
+        "bicycle": {
+          "color": "red",
+          "price": 19.95
+        },
+        "unicorns": []
+      }
+    }"""
 
   def e1 =
-    JsonPath.query("$.store.book[1].price", someJson) must beSuccessful(List(JDouble(12.99)))
+    JsonPath.query("$.store.book[1].price", someJson) must
+      beSuccessful(List(Json.fromDouble(12.99)))
 
   def e2 =
     JsonPath.query("$.store.book[5].price", someJson) must beSuccessful(Nil)
 
   def e3 =
-    JsonPath.query("$.store.unicorns", someJson) must beSuccessful(List(JArray(Nil)))
+    JsonPath.query("$.store.unicorns", someJson) must beSuccessful(List(Json.fromValues(Nil)))
 
   def e4 =
     JsonPath.query(".notJsonPath", someJson) must beFailing.like {
@@ -84,10 +85,10 @@ class JsonPathSpec extends Specification with ValidationMatchers {
     }
 
   def e6 =
-    JsonPath.query("$.store.book[2]", JString("somestring")) must beSuccessful(List())
+    JsonPath.query("$.store.book[2]", Json.fromString("somestring")) must beSuccessful(List())
 
   def e7 =
-    JsonPath.query("$..", JNothing) must beFailing.like {
+    JsonPath.query("$..", Json.fromJsonObject(JsonObject.empty)) must beFailing.like {
       case f => f must beEqualTo("JSONPath error: Nothing was given")
     }
 }

@@ -14,14 +14,13 @@ package com.snowplowanalytics.snowplow.enrich.common
 package adapters
 package registry
 
+import io.circe.literal._
 import org.joda.time.DateTime
 import org.specs2.{Specification, ScalaCheck}
 import org.specs2.matcher.DataTables
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
 
 import loaders._
 
@@ -50,30 +49,37 @@ class PagerdutyAdapterSpec extends Specification with DataTables with Validation
   val ContentType = "application/json"
 
   def e1 =
-    "SPEC NAME"                     || "INPUT"                             | "EXPECTED OUTPUT"               |
-    "Valid, update one value"       !! """{"type":"null"}"""               ! """{"type":null}"""             |
-    "Valid, update multiple values" !! """{"type":"null","some":"null"}""" ! """{"type":null,"some":null}""" |
-    "Valid, update nested values"   !! """{"type": {"some":"null"}}"""     ! """{"type":{"some":null}}"""    |> {
-      (_, input, expected) => PagerdutyAdapter.reformatParameters(parse(input)) mustEqual parse(expected)
+    "SPEC NAME"                     || "INPUT"                                 | "EXPECTED OUTPUT"                   |
+    "Valid, update one value"       !! json"""{"type":"null"}"""               ! json"""{"type":null}"""             |
+    "Valid, update multiple values" !! json"""{"type":"null","some":"null"}""" ! json"""{"type":null,"some":null}""" |
+    "Valid, update nested values"   !! json"""{"type": {"some":"null"}}"""     ! json"""{"type":{"some":null}}"""    |> {
+      (_, input, expected) => PagerdutyAdapter.reformatParameters(input) mustEqual expected
   }
 
   def e2 = {
-    val json = parse("""{"type":"incident.trigger"}""")
-    val expected = parse("""{"type":"trigger"}""")
+    val json = json"""{"type":"incident.trigger"}"""
+    val expected = json"""{"type":"trigger"}"""
     PagerdutyAdapter.reformatParameters(json) mustEqual expected
   }
 
   def e3 =
-    "SPEC NAME"                     || "INPUT"                                                                                              | "EXPECTED OUTPUT"                                                                                    |
-    "Valid, update one value"       !! """{"created_on":"2014-11-12T18:53:47 00:00"}"""                                                     ! """{"created_on":"2014-11-12T18:53:47+00:00"}"""                                                     |
-    "Valid, update multiple values" !! """{"created_on":"2014-11-12T18:53:47 00:00","last_status_change_on":"2014-11-12T18:53:47 00:00"}""" ! """{"created_on":"2014-11-12T18:53:47+00:00","last_status_change_on":"2014-11-12T18:53:47+00:00"}""" |
-    "Valid, update nested values"   !! """{"created_on":"2014-12-15T08:19:54Z","nested":{"created_on":"2014-11-12T18:53:47 00:00"}}"""      ! """{"created_on":"2014-12-15T08:19:54Z","nested":{"created_on":"2014-11-12T18:53:47+00:00"}}"""      |> {
-      (_, input, expected) => PagerdutyAdapter.reformatParameters(parse(input)) mustEqual parse(expected)
+    "SPEC NAME"                     || "INPUT" | "EXPECTED OUTPUT" |
+    "Valid, update one value"       !! json"""{"created_on":"2014-11-12T18:53:47 00:00"}"""                                                     ! json"""{"created_on":"2014-11-12T18:53:47+00:00"}"""                                                     |
+    "Valid, update multiple values" !! json"""{"created_on":"2014-11-12T18:53:47 00:00","last_status_change_on":"2014-11-12T18:53:47 00:00"}""" ! json"""{"created_on":"2014-11-12T18:53:47+00:00","last_status_change_on":"2014-11-12T18:53:47+00:00"}""" |
+    "Valid, update nested values"   !! json"""{"created_on":"2014-12-15T08:19:54Z","nested":{"created_on":"2014-11-12T18:53:47 00:00"}}"""      ! json"""{"created_on":"2014-12-15T08:19:54Z","nested":{"created_on":"2014-11-12T18:53:47+00:00"}}"""      |> {
+      (_, input, expected) => PagerdutyAdapter.reformatParameters(input) mustEqual expected
   }
 
   def e4 = {
     val bodyStr = """{"messages":[{"type":"incident.trigger","data":{"incident":{"id":"P9WY9U9"}}}]}"""
-    val expected = List(JObject(List(("type",JString("incident.trigger")), ("data",JObject(List(("incident",JObject(List(("id",JString("P9WY9U9")))))))))))
+    val expected = List(json"""{
+      "type": "incident.trigger",
+      "data": {
+        "incident": {
+          "id": "P9WY9U9"
+        }
+      }
+    }""")
     PagerdutyAdapter.payloadBodyToEvents(bodyStr) must beSuccessful(expected)
   }
 

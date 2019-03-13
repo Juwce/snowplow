@@ -50,9 +50,6 @@ final class TargetBean {
   override def toString: String = ToStringBuilder.reflectionToString(this)
 }
 
-/**
- * Tests the MapTransformer.
- */
 class MapTransformerSpec extends Specification with ValidationMatchers {
 
   val sourceMap = Map("p" -> "web",
@@ -83,7 +80,6 @@ class MapTransformerSpec extends Specification with ValidationMatchers {
 
   "Applying a TransformMap to an existing POJO" should {
     "successfully set each of the target fields" in {
-
       val target = {
         val t = new TargetBean()
         t.platform  = "old"
@@ -99,7 +95,6 @@ class MapTransformerSpec extends Specification with ValidationMatchers {
 
   "Executing TransformMap's generate() factory" should {
     "successfully instantiate a new POJO" in {
-
       val result = MapTransformer.generate[TargetBean](sourceMap, transformMap)
       result must beSuccessful(expected)
     }

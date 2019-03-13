@@ -12,15 +12,14 @@
  */
 package com.snowplowanalytics.snowplow.enrich.common.enrichments
 
+import io.circe.literal._
 import org.specs2.mutable.{Specification => MutSpecification}
 import org.specs2.{ScalaCheck, Specification}
 import org.specs2.matcher.DataTables
 import scalaz._
 import Scalaz._
-import org.json4s.JsonDSL._
 
 class EtlVersionSpec extends MutSpecification {
-
   "The ETL version" should {
     "be successfully returned using an x.y.z format" in {
       val anyString = "spark-x.x.x"
@@ -29,12 +28,8 @@ class EtlVersionSpec extends MutSpecification {
   }
 }
 
-/**
- * Tests the extractPlatform function.
- * Uses DataTables.
- */
+/** Tests the extractPlatform function. Uses DataTables. */
 class ExtractPlatformSpec extends Specification with DataTables {
-
   val FieldName = "p"
   def err: (String) => String =
     input => "Field [%s]: [%s] is not a supported tracking platform".format(FieldName, input)
@@ -99,14 +94,24 @@ class FormatDerivedContextsSpec extends MutSpecification {
     "convert a list of JObjects to a self-describing contexts JSON" in {
 
       val derivedContextsList = List(
-        (("schema" -> "iglu:com.acme/user/jsonschema/1-0-0") ~
-          ("data" ->
-            ("type"   -> "tester") ~
-              ("name" -> "bethany"))),
-        (("schema"    -> "iglu:com.acme/design/jsonschema/1-0-0") ~
-          ("data" ->
-            ("color"      -> "red") ~
-              ("fontSize" -> 14)))
+        json"""
+          {
+            "schema": "iglu:com.acme/user/jsonschema/1-0-0",
+            "data": {
+              "type": "tester",
+              "name": "bethany"
+            }
+          }
+        """,
+        json"""
+          {
+            "schema": "iglu:com.acme/design/jsonschema/1-0-0",
+            "data": {
+              "color": "red",
+              "fontSize": 14
+            }
+          }
+        """
       )
 
       val expected = """

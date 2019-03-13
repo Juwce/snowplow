@@ -19,7 +19,6 @@ import scala.annotation.tailrec
  * See https://github.com/snowplow/snowplow/issues/1372
  */
 object IpAddressExtractor {
-
   private val ipRegex = """\"?\[?((?:[0-9a-f]|\.|\:+)+).*\]?\"?"""
   private val XForwardedForRegex = s"""^x-forwarded-for: $ipRegex.*""".r
   private val ForwardedForRegex = s"""^forwarded: for=$ipRegex.*""".r
@@ -28,7 +27,6 @@ object IpAddressExtractor {
   /**
    * If a request has been forwarded, extract the original client IP address;
    * otherwise return the standard IP address
-   *
    * @param headers List of headers potentially containing X-FORWARDED-FOR or FORWARDED
    * @param lastIp Fallback IP address if no X-FORWARDED-FOR or FORWARDED header exists
    * @return True client IP address
@@ -48,7 +46,6 @@ object IpAddressExtractor {
   /**
    * If a request has been forwarded, extract the original client IP address;
    * otherwise return the standard IP address
-   *
    * @param xForwardedFor x-forwarded-for field from the Cloudfront log
    * @param lastIp Fallback IP address if no X-FORWARDED-FOR header exists
    * @return True client IP address

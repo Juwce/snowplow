@@ -42,7 +42,6 @@ class EventFingerprintEnrichmentSpec extends Specification with ValidationMatche
   }
 
   def e2 = {
-
     val initialVersion = Map(
       "e"     -> "se",
       "se_ac" -> "action",

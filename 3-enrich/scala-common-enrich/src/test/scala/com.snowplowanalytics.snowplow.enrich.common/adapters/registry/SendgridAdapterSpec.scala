@@ -19,13 +19,10 @@ import org.specs2.mutable.Specification
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
 
 import loaders._
 
 class SendgridAdapterSpec extends Specification with ValidationMatchers {
-
   implicit val resolver = SpecHelpers.IgluResolver
 
   object Shared {
@@ -341,24 +338,21 @@ class SendgridAdapterSpec extends Specification with ValidationMatchers {
       val payload =
         CollectorPayload(Shared.api, Nil, ContentType.some, inputJson.some, Shared.cljSource, Shared.context)
 
-      val expectedJson =
-        compact(
-          parse("""{
-              "schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0",
-              "data":{
-                "schema":"iglu:com.sendgrid/processed/jsonschema/1-0-0",
-                "data":{
-                     "email": "example@test.com",
-                     "timestamp": "2015-11-03T11:20:15.000Z",
-                     "smtp-id": "\u003c14c5d75ce93.dfd.64b469@ismtpd-555\u003e",
-                     "category": "cat facts",
-                     "sg_event_id": "sZROwMGMagFgnOEmSdvhig==",
-                     "sg_message_id": "14c5d75ce93.dfd.64b469.filter0001.16648.5515E0B88.0"
-                  }
-                }
-              }
-            }""")
-        )
+      val expectedJson = """{
+        "schema":"iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0",
+        "data":{
+          "schema":"iglu:com.sendgrid/processed/jsonschema/1-0-0",
+          "data":{
+                "email": "example@test.com",
+                "timestamp": "2015-11-03T11:20:15.000Z",
+                "smtp-id": "\u003c14c5d75ce93.dfd.64b469@ismtpd-555\u003e",
+                "category": "cat facts",
+                "sg_event_id": "sZROwMGMagFgnOEmSdvhig==",
+                "sg_message_id": "14c5d75ce93.dfd.64b469.filter0001.16648.5515E0B88.0"
+            }
+          }
+        }
+      }"""
 
       val actual = SendgridAdapter.toRawEvents(payload)
       actual must beSuccessful(

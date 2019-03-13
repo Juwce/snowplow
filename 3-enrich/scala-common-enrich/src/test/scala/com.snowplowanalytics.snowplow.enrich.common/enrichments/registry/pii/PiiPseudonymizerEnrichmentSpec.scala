@@ -17,20 +17,20 @@ package pii
 
 import java.net.URI
 
+import cats.syntax.either._
 import com.snowplowanalytics.iglu.client.{Resolver, SchemaCriterion}
 import com.snowplowanalytics.iglu.client.repositories.RepositoryRefConfig
+import io.circe.parser._
 import org.joda.time.DateTime
-import org.json4s.jackson.JsonMethods.parse
 import org.apache.commons.codec.digest.DigestUtils
 import org.specs2.Specification
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
 import Scalaz._
 
+import SpecHelpers.toNameValuePairs
 import loaders.{CollectorApi, CollectorContext, CollectorPayload, CollectorSource}
 import outputs.EnrichedEvent
-import utils.{ScalazJson4sUtils, TestResourcesRepositoryRef}
-import SpecHelpers.toNameValuePairs
 import utils.TestResourcesRepositoryRef
 
 class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatchers {
@@ -215,25 +215,34 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        val unstructEventJ   = parse(enrichedEvent.unstruct_event)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress")
-          .extract[String] must_== "72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6") and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2").extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress").extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com") and
-          // The following three tests are for the case that the context schema allows the fields data and schema
-          // and in addition the schema field matches the configured schema. There should be no replacement there
-          // (unless that is specified in jsonpath)
-          (((contextJ \ "data")(1) \ "data" \ "data" \ "emailAddress").extract[String] must_== "jim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "data" \ "emailAddress2")
-            .extract[String] must_== "1c6660411341411d5431669699149283d10e070224be4339d52bbc4b007e78c5") and
-          (((contextJ \ "data")(1) \ "data" \ "schema")
-            .extract[String] must_== "iglu:com.acme/email_sent/jsonschema/1-0-0") and
-          (((unstructEventJ \ "data") \ "data" \ "ip")
-            .extract[String] must_== "269c433d0cc00395e3bc5fe7f06c5ad822096a38bec2d8a005367b52c0dfb428") and
-          (((unstructEventJ \ "data") \ "data" \ "myVar2").extract[String] must_== "awesome")
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor
+        val contextJFirstElement = contextJ.downField("data").first
+        val contextJSecondElement = contextJFirstElement.right
+        val unstructEventJ = parse(enrichedEvent.unstruct_event).toOption.get.hcursor
+          .downField("data").downField("data")
+
+        contextJFirstElement.downField("data").get[String]("emailAddress") must_==
+          Right("72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6")
+        contextJFirstElement.downField("data").get[String]("emailAddress2") must_==
+          Right("bob@acme.com")
+        contextJSecondElement.downField("data").get[String]("emailAddress") must_==
+          Right("tim@acme.com")
+        contextJSecondElement.downField("data").get[String]("emailAddress2") must_==
+          Right("tom@acme.com")
+        // The following three tests are for the case that the context schema allows the fields
+        // data and schema and in addition the schema field matches the configured schema. There
+        // should be no replacement there (unless that is specified in jsonpath)
+        contextJSecondElement.downField("data").downField("data")
+          .get[String]("emailAddress") must_== Right("jim@acme.com")
+        contextJSecondElement.downField("data").downField("data")
+          .get[String]("emailAddress2") must_==
+            Right("1c6660411341411d5431669699149283d10e070224be4339d52bbc4b007e78c5")
+        contextJSecondElement.downField("data").get[String]("schema") must_==
+          Right("iglu:com.acme/email_sent/jsonschema/1-0-0")
+
+        unstructEventJ.get[String]("ip") must_==
+          Right("269c433d0cc00395e3bc5fe7f06c5ad822096a38bec2d8a005367b52c0dfb428")
+        unstructEventJ.get[String]("myVar2") must_== Right("awesome")
     }
   }
 
@@ -267,12 +276,13 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress").extract[String] must_== "jim@acme.com") and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2").extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress").extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com")
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+        firstElem.get[String]("emailAddress") must_== Right("jim@acme.com")
+        firstElem.get[String]("emailAddress2") must_== Right("bob@acme.com")
+        secondElem.get[String]("emailAddress") must_== Right("tim@acme.com")
+        secondElem.get[String]("emailAddress2") must_== Right("tom@acme.com")
     }
   }
 
@@ -306,14 +316,15 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress")
-          .extract[String] must_== "72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6") and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2")
-            .extract[String] must_== "1c6660411341411d5431669699149283d10e070224be4339d52bbc4b007e78c5") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress").extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com")
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+        firstElem.get[String]("emailAddress") must_==
+          Right("72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6")
+        firstElem.get[String]("emailAddress2") must_==
+          Right("1c6660411341411d5431669699149283d10e070224be4339d52bbc4b007e78c5")
+        secondElem.get[String]("emailAddress") must_== Right("tim@acme.com")
+        secondElem.get[String]("emailAddress2") must_== Right("tom.acme.com")
     }
   }
 
@@ -346,15 +357,15 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress")
-          .extract[String] must_== "72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6") and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2")
-            .extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress")
-            .extract[String] must_== "09e4160b10703767dcb28d834c1905a182af0f828d6d3512dd07d466c283c840") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com")
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+        firstElem.get[String]("emailAddress") must_==
+          Right("72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6")
+        firstElem.get[String]("emailAddress2") must_== Right("bob@acme.com")
+        secondElem.get[String]("emailAddress") must_==
+          Right("09e4160b10703767dcb28d834c1905a182af0f828d6d3512dd07d466c283c840")
+        secondElem.get[String]("emailAddress2") must_== Right("tom@acme.com")
     }
   }
 
@@ -387,16 +398,14 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress")
-          .extract[String] must_== "jim@acme.com") and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2")
-            .extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress")
-            .extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com")
-        (((contextJ \ "data")(1) \ "data" \ "someInt").extract[Int] must_== 1)
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+        firstElem.get[String]("emailAddress") must_== Right("jim@acme.com")
+        firstElem.get[String]("emailAddress2") must_== Right("bob@acme.com")
+        secondElem.get[String]("emailAddress") must_== Right("im@acme.com")
+        secondElem.get[String]("emailAddress2") must_== Right("tom@acme.com")
+        secondElem.get[Int]("someInt") must_== Right(1)
     }
   }
 
@@ -443,22 +452,25 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output.head
     out must beSuccessful.like {
       case enrichedEvent =>
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        val unstructEventJ   = parse(enrichedEvent.unstruct_event)
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+        val unstructEventJ =
+          parse(enrichedEvent.unstruct_event).toOption.get.hcursor.downField("data")
+
         (enrichedEvent.pii must_== expected.pii) and // This is the important test, the rest just verify that nothing has changed.
           (enrichedEvent.app_id must_== expected.app_id) and
           (enrichedEvent.ip_domain must_== expected.ip_domain) and
           (enrichedEvent.geo_city must_== expected.geo_city) and
           (enrichedEvent.etl_tstamp must_== expected.etl_tstamp) and
-          (enrichedEvent.collector_tstamp must_== expected.collector_tstamp) and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2").extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress").extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "data" \ "emailAddress").extract[String] must_== "jim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "schema")
-            .extract[String] must_== "iglu:com.acme/email_sent/jsonschema/1-0-0") and
-          (((unstructEventJ \ "data") \ "data" \ "myVar2").extract[String] must_== "awesome")
+          (enrichedEvent.collector_tstamp must_== expected.collector_tstamp)
+
+        firstElem.get[String]("emailAddress2") must_== Right("bob@acme.com")
+        secondElem.get[String]("emailAddress") must_== Right("tim@acme.com")
+        secondElem.get[String]("emailAddress2") must_== Right("tom@acme.com")
+        secondElem.downField("data").get[String]("emailAddress") must_== Right("jim@acme.com")
+        secondElem.get[String]("schema") must_== Right("iglu:com.acme/email_sent/jsonschema/1-0-0")
+        unstructEventJ.downField("data").get[String]("myVar2") must_== Right("awesome")
     }
   }
 
@@ -491,16 +503,16 @@ class PiiPseudonymizerEnrichmentSpec extends Specification with ValidationMatche
     val out = output(0)
     out must beSuccessful.like {
       case enrichedEvent => {
-        implicit val formats = org.json4s.DefaultFormats
-        val contextJ         = parse(enrichedEvent.contexts)
-        (((contextJ \ "data")(0) \ "data" \ "emailAddress")
-          .extract[String] must_== "72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6") and
-          (ScalazJson4sUtils.fieldExists(((contextJ \ "data")(0) \ "data"), "nonExistentEmailAddress") must_== false) and
-          (((contextJ \ "data")(0) \ "data" \ "emailAddress2")
-            .extract[String] must_== "bob@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress")
-            .extract[String] must_== "tim@acme.com") and
-          (((contextJ \ "data")(1) \ "data" \ "emailAddress2").extract[String] must_== "tom@acme.com")
+        val contextJ = parse(enrichedEvent.contexts).toOption.get.hcursor.downField("data")
+        val firstElem = contextJ.first.downField("data")
+        val secondElem = contextJ.first.right.downField("data")
+
+        firstElem.get[String]("emailAddress") must_==
+          Right("72f323d5359eabefc69836369e4cabc6257c43ab6419b05dfb2211d0e44284c6")
+        firstElem.downField("data").get[String]("nonExistentEmailAddress") must beLeft
+        firstElem.get[String]("emailAddress2") must_== Right("bob@acme.com")
+        secondElem.get[String]("emaillAddress") must_== Right("tim@acme.com")
+        secondElem.get[String]("emailAddress2") must_== Right("tom@acme.com")
       }
     }
   }

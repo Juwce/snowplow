@@ -15,8 +15,10 @@ package enrichments.registry.sqlquery
 
 import scala.collection.immutable.IntMap
 
-import org.json4s.JObject
-import org.json4s.jackson.parseJson
+import cats.syntax.either._
+import io.circe._
+import io.circe.literal._
+import io.circe.parser._
 import org.specs2.Specification
 import org.specs2.scalaz.ValidationMatchers
 import scalaz._
@@ -61,62 +63,54 @@ class InputSpec extends Specification with ValidationMatchers {
                        "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-*",
                        "$.latitude").some)
 
-    val derivedContext1 = parseJson(
-      """
-       |{
-       | "schema": "iglu:org.openweathermap/weather/jsonschema/1-0-0",
-       | "data": {
-       |    "clouds": {
-       |        "all": 0
-       |    },
-       |    "dt": "2014-11-10T08:38:30.000Z",
-       |    "main": {
-       |        "grnd_level": 1021.91,
-       |        "humidity": 90,
-       |        "pressure": 1021.91,
-       |        "sea_level": 1024.77,
-       |        "temp": 301.308,
-       |        "temp_max": 301.308,
-       |        "temp_min": 301.308
-       |    },
-       |    "weather": [ { "description": "Sky is Clear", "icon": "01d", "id": 800, "main": "Clear" } ],
-       |    "wind": {
-       |        "deg": 190.002,
-       |        "speed": 4.39
-       |    }
-       |}
-       |}
-      """.stripMargin).asInstanceOf[JObject]
+    val derivedContext1 = json"""
+      {
+       "schema": "iglu:org.openweathermap/weather/jsonschema/1-0-0",
+       "data": {
+          "clouds": {
+              "all": 0
+          },
+          "dt": "2014-11-10T08:38:30.000Z",
+          "main": {
+              "grnd_level": 1021.91,
+              "humidity": 90,
+              "pressure": 1021.91,
+              "sea_level": 1024.77,
+              "temp": 301.308,
+              "temp_max": 301.308,
+              "temp_min": 301.308
+          },
+          "weather": [ { "description": "Sky is Clear", "icon": "01d", "id": 800, "main": "Clear" } ],
+          "wind": {
+              "deg": 190.002,
+              "speed": 4.39
+          }
+        }
+      }"""
 
-    val cookieContext = parseJson("""
-       |{
-       |  "schema": "iglu:org.ietf/http_cookie/jsonschema/1-0-0",
-       |  "data": {"name": "someCookieAgain", "value": null}
-       |}
-     """.stripMargin).asInstanceOf[JObject]
+    val cookieContext = json"""
+      {
+        "schema": "iglu:org.ietf/http_cookie/jsonschema/1-0-0",
+        "data": {"name": "someCookieAgain", "value": null}
+      }"""
 
-    val cookieContextWithoutNull = parseJson("""
-        |{
-        |  "schema": "iglu:org.ietf/http_cookie/jsonschema/1-0-0",
-        |  "data": {"name": "someCookieAgain", "value": "someValue"}
-        |}
-      """.stripMargin).asInstanceOf[JObject]
+    val cookieContextWithoutNull = json"""
+      {
+        "schema": "iglu:org.ietf/http_cookie/jsonschema/1-0-0",
+        "data": {"name": "someCookieAgain", "value": "someValue"}
+      }"""
 
-    val unstructEvent = parseJson(
-      """
-        |{
-        |  "schema": "iglu:com.snowplowanalytics.monitoring.batch/jobflow_step_status/jsonschema/1-0-0",
-        |  "data": {"name": "Some EMR Job", "state": "COMPLETED"}
-        |}
-      """.stripMargin).asInstanceOf[JObject]
+    val unstructEvent = json"""
+      {
+        "schema": "iglu:com.snowplowanalytics.monitoring.batch/jobflow_step_status/jsonschema/1-0-0",
+        "data": {"name": "Some EMR Job", "state": "COMPLETED"}
+      }"""
 
-    val overriderContext = parseJson(
-      """
-        |{
-        |  "schema": "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-0",
-        |  "data": {"latitude": 43.1, "longitude": 32.1}
-        |}
-      """.stripMargin).asInstanceOf[JObject]
+    val overriderContext = json"""
+      {
+        "schema": "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-0",
+        "data": {"latitude": 43.1, "longitude": 32.1}
+      }"""
   }
 
   def e1 = {
@@ -172,13 +166,11 @@ class InputSpec extends Specification with ValidationMatchers {
                        "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-*",
                        "$.latitude").some)
     val pojoLatitudeInput = Input(1, pojo = PojoInput("geo_latitude").some, json = None)
-    val jsonLatitudeContext = parseJson(
-      """
-        |{
-        |  "schema": "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-0",
-        |  "data": {"latitude": 43.1, "longitude": 32.1}
-        |}
-      """.stripMargin).asInstanceOf[JObject]
+    val jsonLatitudeContext = json"""
+      {
+        "schema": "iglu:com.snowplowanalytics.snowplow/geolocation_context/jsonschema/1-1-0",
+        "data": {"latitude": 43.1, "longitude": 32.1}
+      }"""
     val event = new EnrichedEvent
     event.setGeo_latitude(42.0f)
 
@@ -209,7 +201,7 @@ class InputSpec extends Specification with ValidationMatchers {
     val templateContext = Input.buildPlaceholderMap(List(invalidJsonPathInput, pojoInput, invalidJsonFieldInput),
                                                     null,
                                                     derivedContexts = Nil,
-                                                    customContexts  = List(JObject(Nil)),
+                                                    customContexts  = List(Json.fromValues(Nil)),
                                                     unstructEvent   = None)
     templateContext must beFailing.like {
       case errors => errors.toList must have length 3
@@ -253,10 +245,11 @@ class InputSpec extends Specification with ValidationMatchers {
     eventTypeMap.values.toSet.diff(typeHandlersMap.keySet) must beEmpty
 
   def e7 = {
-    val jsonObject = Input.extractFromJson(parseJson("""{"foo": "bar"} """))
-    val jsonNull   = Input.extractFromJson(parseJson("null"))
-    val jsonBool   = Input.extractFromJson(parseJson("true"))
-    val jsonBigInt = Input.extractFromJson(parseJson((java.lang.Long.MAX_VALUE - 1).toString))
+    val jsonObject = Input.extractFromJson(json"""{"foo": "bar"} """)
+    val jsonNull   = Input.extractFromJson(json"null")
+    val jsonBool   = Input.extractFromJson(json"true")
+    val jsonBigInt = Input.extractFromJson(
+      parse((java.lang.Long.MAX_VALUE - 1).toString).toOption.get)
 
     val o = jsonObject must beNone
     val n = jsonNull must beNone

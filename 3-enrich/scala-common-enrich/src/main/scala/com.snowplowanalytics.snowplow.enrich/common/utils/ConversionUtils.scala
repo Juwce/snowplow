@@ -31,19 +31,12 @@ import org.apache.http.client.utils.URLEncodedUtils
 import scalaz._
 import Scalaz._
 
-/**
- * General-purpose utils to help the
- * ETL process along.
- */
+/** General-purpose utils to help the ETL process along. */
 object ConversionUtils {
-
   private val UrlSafeBase64 = new Base64(true) // true means "url safe"
 
-  /**
-   * Simple case class wrapper around the
-   * components of a URI.
-   */
-  case class UriComponents(
+  /** Simple case class wrapper around the components of a URI. */
+  final case class UriComponents(
     // Required
     scheme: String,
     host: String,
@@ -54,18 +47,11 @@ object ConversionUtils {
     fragment: Option[String])
 
   /**
-   * Explodes a URI into its 6 components
-   * pieces. Simple code but we use it
-   * in multiple places
-   *
-   * @param uri The URI to explode into its
-   *        constituent pieces
-   *
-   * @return The 6 components in a UriComponents
-   *         case class
+   * Explodes a URI into its 6 components pieces. Simple code but we use it in multiple places
+   * @param uri The URI to explode into its constituent pieces
+   * @return The 6 components in a UriComponents case class
    */
   def explodeUri(uri: URI): UriComponents = {
-
     val port = uri.getPort
 
     // TODO: should we be using decodeString below instead?
@@ -91,10 +77,8 @@ object ConversionUtils {
   }
 
   /**
-   * Quick helper to make sure our Strings are TSV-safe,
-   * i.e. don't include tabs, special characters, newlines
-   * etc.
-   *
+   * Quick helper to make sure our Strings are TSV-safe, i.e. don't include tabs, special
+   * characters, newlines, etc.
    * @param str The string we want to make safe
    * @return a safe String
    */
@@ -102,14 +86,9 @@ object ConversionUtils {
     fixTabsNewlines(str).orNull
 
   /**
-   * Replaces tabs with four spaces and removes
-   * newlines altogether.
-   *
-   * Useful to prepare user-created strings for
-   * fragile storage formats like TSV.
-   *
+   * Replaces tabs with four spaces and removes newlines altogether.
+   * Useful to prepare user-created strings for fragile storage formats like TSV.
    * @param str The String to fix
-
    * @return The String with tabs and newlines fixed.
    */
   def fixTabsNewlines(str: String): Option[String] = {
@@ -122,21 +101,15 @@ object ConversionUtils {
 
   /**
    * Decodes a URL-safe Base64 string.
-   *
-   * For details on the Base 64 Encoding with URL
-   * and Filename Safe Alphabet see:
-   *
+   * For details on the Base 64 Encoding with URL and Filename Safe Alphabet see:
    * http://tools.ietf.org/html/rfc4648#page-7
-   *
-   * @param str The encoded string to be
-   * decoded
+   * @param str The encoded string to be decoded
    * @param field The name of the field
    * @return a Scalaz Validation, wrapping either an
    * an error String or the decoded String
    */
   // TODO: probably better to change the functionality and signature
   // a little:
-  //
   // 1. Signature -> : Validation[String, Option[String]]
   // 2. Functionality:
   // 1. If passed in null or "", return Success(None)
@@ -148,17 +121,15 @@ object ConversionUtils {
       result.success
     } catch {
       case NonFatal(e) =>
-        "Field [%s]: exception Base64-decoding [%s] (URL-safe encoding): [%s]".format(field, str, e.getMessage).fail
+        "Field [%s]: exception Base64-decoding [%s] (URL-safe encoding): [%s]"
+          .format(field, str, e.getMessage)
+          .fail
     }
 
   /**
    * Encodes a URL-safe Base64 string.
-   *
-   * For details on the Base 64 Encoding with URL
-   * and Filename Safe Alphabet see:
-   *
+   * For details on the Base 64 Encoding with URL and Filename Safe Alphabet see:
    * http://tools.ietf.org/html/rfc4648#page-7
-   *
    * @param str The string to be encoded
    * @return the string encoded in URL-safe Base64
    */
@@ -169,15 +140,12 @@ object ConversionUtils {
 
   /**
    * Validates that the given field contains a valid UUID.
-   *
    * @param field The name of the field being validated
    * @param str The String hopefully containing a UUID
-   * @return a Scalaz ValidatedString containing either
-   *         the original String on Success, or an error
-   *         String on Failure.
+   * @return a Scalaz ValidatedString containing either the original String on Success, or an error
+   * String on Failure.
    */
   val validateUuid: (String, String) => ValidatedString = (field, str) => {
-
     def check(s: String)(u: UUID): Boolean = (u != null && s.toLowerCase == u.toString)
     val uuid = Try(UUID.fromString(str)).toOption.filter(check(str))
     uuid match {
@@ -189,41 +157,32 @@ object ConversionUtils {
   /**
    * @param field The name of the field being validated
    * @param str The String hopefully parseable as an integer
-   * @return a Scalaz ValidatedString containing either
-   *         the original String on Success, or an error
-   *         String on Failure.
+   * @return a Scalaz ValidatedString containing either the original String on Success, or an error
+   * String on Failure.
    */
   val validateInteger: (String, String) => ValidatedString = (field, str) => {
     try {
       str.toInt
       str.success
     } catch {
-      case _: java.lang.NumberFormatException => s"Field [$field]: [$str] is not a valid integer".fail
+      case _: java.lang.NumberFormatException =>
+        s"Field [$field]: [$str] is not a valid integer".fail
     }
   }
 
   /**
-   * Decodes a String in the specific encoding,
-   * also removing:
+   * Decodes a String in the specific encoding, also removing:
    * * Newlines - because they will break Hive
    * * Tabs - because they will break non-Hive
    *          targets (e.g. Infobright)
-   *
-   * IMPLDIFF: note that this version, unlike
-   * the Hive serde version, does not call
-   * cleanUri. This is because we cannot assume
-   * that str is a URI which needs 'cleaning'.
-   *
-   * TODO: simplify this when we move to a more
-   * robust output format (e.g. Avro) - as then
+   * IMPLDIFF: note that this version, unlike the Hive serde version, does not call
+   * cleanUri. This is because we cannot assume that str is a URI which needs 'cleaning'.
+   * TODO: simplify this when we move to a more robust output format (e.g. Avro) - as then
    * no need to remove line breaks, tabs etc
-   *
    * @param enc The encoding of the String
    * @param field The name of the field
    * @param str The String to decode
-   *
-   * @return a Scalaz Validation, wrapping either
-   *         an error String or the decoded String
+   * @return a Scalaz Validation, wrapping either an error String or the decoded String
    */
   val decodeString: (Charset, String, String) => ValidatedString = (enc, field, str) =>
     try {
@@ -235,40 +194,29 @@ object ConversionUtils {
       r.success
     } catch {
       case NonFatal(e) =>
-        "Field [%s]: Exception URL-decoding [%s] (encoding [%s]): [%s]".format(field, str, enc, e.getMessage).fail
+        "Field [%s]: Exception URL-decoding [%s] (encoding [%s]): [%s]"
+          .format(field, str, enc, e.getMessage)
+          .fail
   }
 
   /**
-   * On 17th August 2013, Amazon made an
-   * unannounced change to their CloudFront
-   * log format - they went from always encoding
-   * % characters, to only encoding % characters
-   * which were not previously encoded. For a
-   * full discussion of this see:
-   *
+   * On 17th August 2013, Amazon made an unannounced change to their CloudFront
+   * log format - they went from always encoding % characters, to only encoding % characters
+   * which were not previously encoded. For a full discussion of this see:
    * https://forums.aws.amazon.com/thread.jspa?threadID=134017&tstart=0#
-   *
-   * On 14th September 2013, Amazon rolled out a further fix,
-   * from which point onwards all fields, including the
-   * referer and useragent, would have %s double-encoded.
-   *
-   * This causes issues, because the ETL process expects
-   * referers and useragents to be only single-encoded.
-   *
-   * This function turns a double-encoded percent (%) into
-   * a single-encoded one.
-   *
+   * On 14th September 2013, Amazon rolled out a further fix, from which point onwards all fields,
+   * including the referer and useragent, would have %s double-encoded.
+   * This causes issues, because the ETL process expects referers and useragents to be only
+   * single-encoded.
+   * This function turns a double-encoded percent (%) into a single-encoded one.
    * Examples:
    * 1. "page=Celestial%25Tarot"          -   no change (only single encoded)
    * 2. "page=Dreaming%2520Way%2520Tarot" -> "page=Dreaming%20Way%20Tarot"
    * 3. "loading 30%2525 complete"        -> "loading 30%25 complete"
-   *
    * Limitation of this approach: %2588 is ambiguous. Is it a:
    * a) A double-escaped caret "ˆ" (%2588 -> %88 -> ^), or:
    * b) A single-escaped "%88" (%2588 -> %88)
-   *
    * This code assumes it's a).
-   *
    * @param str The String which potentially has double-encoded %s
    * @return the String with %s now single-encoded
    */
@@ -277,19 +225,15 @@ object ConversionUtils {
 
   /**
    * Decode double-encoded percents, then percent decode
-   *
    * @param field The name of the field
    * @param str The String to decode
-   *
-   * @return a Scalaz Validation, wrapping either
-   *         an error String or the decoded String
+   * @return a Scalaz Validation, wrapping either an error String or the decoded String
    */
   def doubleDecode(field: String, str: String): ValidatedString =
     ConversionUtils.decodeString(UTF_8, field, singleEncodePcts(str))
 
   /**
    * Encodes a string in the specified encoding
-   *
    * @param enc The encoding to be used
    * @param str The string which needs to be URLEncoded
    * @return a URL encoded string
@@ -298,23 +242,13 @@ object ConversionUtils {
     URLEncoder.encode(str, enc)
 
   /**
-   * A wrapper around Java's
-   * URI.create().
-   *
-   * Exceptions thrown by
-   * URI.create():
-   * 1. NullPointerException
-   *    if uri is null
-   * 2. IllegalArgumentException
-   *    if uri violates RFC 2396
-   *
-   * @param uri The URI string to
-   *        convert
-   * @param useNetaporter Whether to use the
-   *        com.netaporter.uri library
-   * @return an Option-boxed URI object, or an
-   *         error message, all
-   *         wrapped in a Validation
+   * A wrapper around Java's URI.create().
+   * Exceptions thrown by URI.create():
+   * 1. NullPointerException if uri is null
+   * 2. IllegalArgumentException if uri violates RFC 2396
+   * @param uri The URI string to convert
+   * @param useNetaporter Whether to use the com.netaporter.uri library
+   * @return an Option-boxed URI object, or an error message, all wrapped in a Validation
    */
   def stringToUri(uri: String, useNetaporter: Boolean = false): Validation[String, Option[URI]] =
     try {
@@ -343,12 +277,12 @@ object ConversionUtils {
               .format(uri, ExceptionUtils.getRootCause(iae).getMessage)
               .fail
         }
-      case NonFatal(e) => "Unexpected error creating URI from string [%s]: [%s]".format(uri, e.getMessage).fail
+      case NonFatal(e) =>
+        "Unexpected error creating URI from string [%s]: [%s]".format(uri, e.getMessage).fail
     }
 
   /**
    * Attempt to extract the querystring from a URI as a map
-   *
    * @param uri URI containing the querystring
    * @param encoding Encoding of the URI
    */
@@ -362,20 +296,10 @@ object ConversionUtils {
     }
 
   /**
-   * Extract a Scala Int from
-   * a String, or error.
-   *
-   * @param str The String
-   *        which we hope is an
-   *        Int
-   * @param field The name of the
-   *        field we are trying to
-   *        process. To use in our
-   *        error message
-   * @return a Scalaz Validation,
-   *         being either a
-   *         Failure String or
-   *         a Success JInt
+   * Extract a Scala Int from a String, or error.
+   * @param str The String which we hope is an Int
+   * @param field The name of the field we are trying to process. To use in our error message
+   * @return a Scalaz Validation, being either a Failure String or a Success JInt
    */
   val stringToJInteger: (String, String) => Validation[String, JInteger] = (field, str) =>
     if (Option(str).isEmpty) {
@@ -391,27 +315,18 @@ object ConversionUtils {
   }
 
   /**
-   * Convert a String to a String containing a
-   * Redshift-compatible Double.
-   *
-   * Necessary because Redshift does not support all
-   * Java Double syntaxes e.g. "3.4028235E38"
-   *
-   * Note that this code does NOT check that the
-   * value will fit within a Redshift Double -
-   * meaning Redshift may silently round this number
-   * on load.
-   *
-   * @param str The String which we hope contains
-   *        a Double
-   * @param field The name of the field we are
-   *        validating. To use in our error message
-   * @return a Scalaz Validation, being either
-   *         a Failure String or a Success String
+   * Convert a String to a String containing a Redshift-compatible Double.
+   * Necessary because Redshift does not support all Java Double syntaxes e.g. "3.4028235E38"
+   * Note that this code does NOT check that the value will fit within a Redshift Double -
+   * meaning Redshift may silently round this number on load.
+   * @param str The String which we hope contains a Double
+   * @param field The name of the field we are validating. To use in our error message
+   * @return a Scalaz Validation, being either a Failure String or a Success String
    */
   val stringToDoublelike: (String, String) => ValidatedString = (field, str) =>
     try {
-      if (Option(str).isEmpty || str == "null") { // "null" String check is LEGACY to handle a bug in the JavaScript tracker
+      if (Option(str).isEmpty || str == "null") {
+        // "null" String check is LEGACY to handle a bug in the JavaScript tracker
         null.asInstanceOf[String].success
       } else {
         val jbigdec = new JBigDecimal(str)
@@ -424,17 +339,14 @@ object ConversionUtils {
 
   /**
    * Convert a String to a Double
-   *
-   * @param str The String which we hope contains
-   *        a Double
-   * @param field The name of the field we are
-   *        validating. To use in our error message
-   * @return a Scalaz Validation, being either
-   *         a Failure String or a Success Double
+   * @param str The String which we hope contains a Double
+   * @param field The name of the field we are validating. To use in our error message
+   * @return a Scalaz Validation, being either a Failure String or a Success Double
    */
   def stringToMaybeDouble(field: String, str: String): Validation[String, Option[Double]] =
     try {
-      if (Option(str).isEmpty || str == "null") { // "null" String check is LEGACY to handle a bug in the JavaScript tracker
+      if (Option(str).isEmpty || str == "null") {
+        // "null" String check is LEGACY to handle a bug in the JavaScript tracker
         None.success
       } else {
         val jbigdec = new JBigDecimal(str)
@@ -471,20 +383,10 @@ object ConversionUtils {
   }
 
   /**
-   * Extract a Java Byte representing
-   * 1 or 0 only from a String, or error.
-   *
-   * @param str The String
-   *        which we hope is an
-   *        Byte
-   * @param field The name of the
-   *        field we are trying to
-   *        process. To use in our
-   *        error message
-   * @return a Scalaz Validation,
-   *         being either a
-   *         Failure String or
-   *         a Success Byte
+   * Extract a Java Byte representing 1 or 0 only from a String, or error.
+   * @param str The String which we hope is an Byte
+   * @param field The name of the field we are trying to process. To use in our error message
+   * @return a Scalaz Validation, being either a Failure String or a Success Byte
    */
   val stringToBooleanlikeJByte: (String, String) => Validation[String, JByte] = (field, str) =>
     str match {
@@ -494,14 +396,10 @@ object ConversionUtils {
   }
 
   /**
-   * Converts a String of value "1" or "0"
-   * to true or false respectively.
-   *
+   * Converts a String of value "1" or "0" to true or false respectively.
    * @param str The String to convert
-   * @return True for "1", false for "0", or
-   *         an error message for any other
-   *         value, all boxed in a Scalaz
-   *         Validation
+   * @return True for "1", false for "0", or an error message for any other value, all boxed in a
+   * Scalaz Validation
    */
   val stringToBoolean: (String, String) => Validation[String, Boolean] = (field, str) =>
     if (str == "1") {
@@ -513,12 +411,9 @@ object ConversionUtils {
   }
 
   /**
-   * Truncates a String - useful for making sure
-   * Strings can't overflow a database field.
-   *
+   * Truncates a String - useful for making sure Strings can't overflow a database field.
    * @param str The String to truncate
-   * @param length The maximum length of the String
-   *        to keep
+   * @param length The maximum length of the String to keep
    * @return the truncated String
    */
   def truncate(str: String, length: Int): String =
@@ -529,9 +424,7 @@ object ConversionUtils {
     }
 
   /**
-   * Helper to convert a Boolean value to a Byte.
-   * Does not require any validation.
-   *
+   * Helper to convert a Boolean value to a Byte. Does not require any validation.
    * @param bool The Boolean to convert into a Byte
    * @return 0 if false, 1 if true
    */
@@ -539,15 +432,10 @@ object ConversionUtils {
     (if (bool) 1 else 0).toByte
 
   /**
-   * Helper to convert a Byte value
-   * (1 or 0) into a Boolean.
-   *
-   * @param b The Byte to turn
-   *        into a Boolean
-   * @return the Boolean value of b, or
-   *         an error message if b is
-   *         not 0 or 1 - all boxed in a
-   *         Scalaz Validation
+   * Helper to convert a Byte value (1 or 0) into a Boolean.
+   * @param b The Byte to turn into a Boolean
+   * @return the Boolean value of b, or an error message if b is not 0 or 1 - all boxed in a
+   * Scalaz Validation
    */
   def byteToBoolean(b: Byte): Validation[String, Boolean] =
     if (b == 0)

@@ -23,9 +23,7 @@ object CurrencyConversionEnrichmentSpec {
   val OerApiKey = "OER_KEY"
 }
 
-/**
- * Tests the convertCurrencies function
- */
+/** Tests the convertCurrencies function */
 import CurrencyConversionEnrichmentSpec._
 class CurrencyConversionEnrichmentSpec extends Specification with DataTables {
   def is =

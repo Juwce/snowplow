@@ -20,10 +20,8 @@ import org.specs2.matcher.DataTables
 
 /**
  * A small selection of tests partially borrowed from referer-parser.
- *
  * This is a very imcomplete set - more a tripwire than an exhaustive test.
  * Please see referer-parser's test suite for the full set of tests:
- *
  * https://github.com/snowplow/referer-parser/tree/master/java-scala/src/test/scala/com/snowplowanalytics/refererparser/scala
  */
 class ExtractRefererDetailsSpec extends Specification with DataTables {
