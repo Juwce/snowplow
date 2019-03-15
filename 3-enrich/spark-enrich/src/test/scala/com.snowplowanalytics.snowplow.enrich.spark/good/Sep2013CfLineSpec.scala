@@ -67,7 +67,7 @@ object Sep2013CfLineSpec {
     "80",
     "/url",
     // Note this is incorrectly decoded one too many times
-    "sa=t&rct=j&q=www.psychicbazaar.com+312-dreaming-way-tarot&source=web&cd=1&ved=0CFwQFjAD&url=http://www.psychicbazaar.com/tarot-cards/312-dreaming-way-tarot.html?utm_source=GoogleSearch&utm_term=rome%20choi%20tarot&utm_content=42017424088&utm_medium=cpc&utm_campaign=uk-tarot-decks--pbz00316&ei=2CdTUo3DJqf9oAa_Fg&usg=AFQjCNGGq8p48SyYds9oznKs1F5RQYtx_A",
+    "sa=t&rct=j&q=www.psychicbazaar.com+312-dreaming-way-tarot&source=web&cd=1&ved=0CFwQFjAD&url=http%3A%2F%2Fwww.psychicbazaar.com%2Ftarot-cards%2F312-dreaming-way-tarot.html%3Futm_source%3DGoogleSearch&utm_term=rome%20choi%20tarot&utm_content=42017424088&utm_medium=cpc&utm_campaign=uk-tarot-decks--pbz00316&ei=2CdTUo3DJqf9oAa_Fg&usg=AFQjCNGGq8p48SyYds9oznKs1F5RQYtx_A",
     null,
     "search", // Search referer
     "Google",

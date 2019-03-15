@@ -43,6 +43,7 @@ import io.lemonlabs.uri.Uri
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.config.UriConfig
 import io.lemonlabs.uri.decoding.PercentDecoder
+import io.lemonlabs.uri.encoding.percentEncode
 
 /**
  * General-purpose utils to help the
@@ -311,15 +312,8 @@ object ConversionUtils {
     URLEncoder.encode(str, enc)
 
   /**
-   * Parses a string to create a [[URI]].
+   * Parses a string to create a [[URI]], using scala-uri.
    * Parsing is relaxed, i.e. even if a URL is not correctly percent-encoded or not RFC 3986-compliant, it can be parsed.
-   *
-   * First, parsing is tried with [[URI.create]] and if it does not succeed,
-   * a more relaxed parsing is done with scala-uri.
-   * The reason why not using scala-uri directly is that it can encode input valid URIs.
-   * For example, with scala-uri :
-   * - http://example.com/pa+th?param=val+ue becomes http://example.com/pa%20th?param=val+ue
-   * - http://example.com/qs?param=a%20b becomes http://example.com/qs?param=a%2520b
    *
    * @param uri String containing the URI to parse.
    * @return [[Validation]] wrapping the result of the parsing:
@@ -327,20 +321,23 @@ object ConversionUtils {
    *         - [[Failure]] with the error message if something went wrong.
    */
   def stringToUri(uri: String): Validation[String, Option[URI]] =
-    try {
-      Option(uri).map(_.replaceAll(" ", "%20")).map(URI.create).success
-    } catch {
-      case NonFatal(e) =>
-        try {
-          implicit val c = UriConfig(decoder = PercentDecoder(ignoreInvalidPercentEncoding = true))
-          Uri.parseOption(uri).map(_.toJavaURI).success
-        } catch {
-          case NonFatal(e) =>
-            "Provided URI [%s] could not be parsed. Error: [%s]"
-              .format(uri, e.getMessage)
-              .fail
-        }
-    }
+    Validation.fromEither(
+      Option(uri) match {
+        case None =>
+          Right(None) // null input needs to be handled before Uri.parseTry(), otherwise we can't differentiate it with a parsing error
+        case Some(_) =>
+          implicit val c =
+            UriConfig(decoder = PercentDecoder(ignoreInvalidPercentEncoding = true), encoder = percentEncode -- '+')
+          Uri
+            .parseTry(uri)
+            .map(_.toJavaURI)
+            .map(parsedUri => Right(Some(parsedUri)))
+            .recover {
+              case NonFatal(e) => Left("Provided URI [%s] could not be parsed. Error: [%s]".format(uri, e.getMessage))
+            }
+            .get
+      }
+    )
 
   /**
    * Attempt to extract the querystring from a URI as a map

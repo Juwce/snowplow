@@ -30,11 +30,11 @@ class StringToUriSpec extends MutableSpecification with ValidationMatchers {
 
   /** Helper to generate URLs with `chars` at different places in the path and in the query string, doubled, tripled, etc. */
   private def generateUrlsWithChars(chars: String): List[String] = List(
-    s"http://www.example.com/a/b/${chars}",
-    s"http://www.example.com/a${chars}",
-    s"http://www.example.com/a$chars${chars}",
+    s"http://www.example.com/a/b/$chars",
+    s"http://www.example.com/a$chars",
+    s"http://www.example.com/a$chars$chars",
     s"http://www.example.com/a$chars$chars${chars}b/c",
-    s"http://www.example.com/a${chars}123/c$chars${chars}d",
+    s"http://www.example.com/a$chars/c$chars${chars}d",
     s"http://www.example.com/a${chars}b/456?d=e$chars${chars}f&g=h${chars}i&j=k",
     s"http://www.example.com/a${chars}b/c?d=e&f=g$chars$chars${chars}h"
   )
@@ -54,7 +54,7 @@ class StringToUriSpec extends MutableSpecification with ValidationMatchers {
         "http://www.example.com",
         "http://www.example.com/",
         "http://www.example.com/a",
-        "http://www.google.com/se+arch?q=gateway+oracle+cards+denise+linn&hl=en&client=safari"
+        "http://www.google.com/search?q=gateway+oracle+cards+denise+linn&hl=en&client=safari"
       ) ++ generateUrlsWithChars(""))
         .map(url => ConversionUtils.stringToUri(url) must_== Some(URI.create(url)).success)
     }
@@ -65,7 +65,7 @@ class StringToUriSpec extends MutableSpecification with ValidationMatchers {
     }
 
     "work with correctly percent-encoded URL and not modify it" >> {
-      val url = "www.example.com/a%23b/?c=d%24e"
+      val url = "www.example.com/a%24b/?c=d%24e"
       ConversionUtils.stringToUri(url) must_== Success(Some(URI.create(url)))
     }
 
